@@ -22,7 +22,7 @@
 ```text
 연세대학교 교육대학원 바이브 코딩 환경을 초기 세팅해 줘. 아래 작업을 순서대로 실행해:
 
-1. 현재 프로젝트 루트에 `git clone https://github.com/jwhwang/yonsei-gse-vibe-context.git vibe-context` 명령으로 공유 컨텍스트 저장소를 내려받아 줘.
+1. 현재 프로젝트 루트에 `git clone https://github.com/boxak30134/yonsei-gse-vibe-context.git vibe-context` 명령으로 공유 컨텍스트 저장소를 내려받아 줘.
 2. 루트의 `.gitignore` 파일(없으면 새로 생성)에 `vibe-context/` 와 `.env*` 두 줄이 포함되어 있는지 확인하고 없으면 추가해 줘.
 3. 프로젝트 루트에 `AGENTS.md` 와 `CLAUDE.md` 두 파일을 생성하고, 둘 다 아래 내용을 똑같이 적어 줘:
 @vibe-context/AGENTS.md
