@@ -16,7 +16,7 @@ date: 2026-11-13
 
 ## [해결 패턴]
 1. **최소 권한(`drive.file`) + `Folder Boundary Guard`**: `drive.file` 스코프만 요청하고 모든 조회 쿼리에 `'<targetFolderId>' in parents and trashed = false`를 강제하며, 쓰기/삭제 전 `parents` 불일치 시 `SecurityBoundaryError`를 발생시켰다.
-2. **GIS 자동 로드 + 전용 폴더 자동 생성 + 인앱 모달**: `index.html` 및 동적 로더(`ensureGoogleGisLoaded`)로 GIS 팝업을 즉시 실행하고, Picker API Key 없이도 Drive API만으로 앱 전용 폴더를 자동 생성/연결(`ensureOrCreateDefaultSyncFolder`)하며, 폴더 변경은 인앱 모달(`listAppAccessibleFolders`)로 대체했다.
+2. **GIS 자동 로드 + 전용 폴더 자동 생성 + 인앱 모달**: `index.html` 및 동적 로더로 GIS 팝업을 즉시 실행하고, Picker API Key 없이도 Drive API만으로 앱 전용 폴더를 자동 생성/연결하며, 폴더 변경은 인앱 모달로 대체했다.
 3. **충돌 분기 & Undo 보호**: 양방향 동시 수정 시 `(충돌 사본 ...)`으로 분기하고, 지정 폴더 삭제 시 루트 재생성 대신 `SYNC_FOLDER_MISSING`으로 안전 중단하며, 원격 반영 시 `addToHistory: false`로 로컬 Undo 스택을 보호했다.
 
 ## [에이전트 방어 규칙 제안]
