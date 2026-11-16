@@ -4,6 +4,14 @@
 
 ---
 
+## 0. 초기 온보딩 규칙 (`/onboarding`)
+사용자가 새 프로젝트에서 `/onboarding` 또는 초기 세팅 완료 직후 기획 시작을 요청하면, 바로 코드를 작성하지 않고 아래 **3단계 질문**을 순서대로 진행해 요구사항을 확정한 뒤 개발에 착수한다.
+1. **1단계 — 교육 목적 및 대상**: 이 웹앱을 어떤 교과/수업/연구 상황에서 누가(교사·학생·원우 등) 사용하는지 확인한다.
+2. **2단계 — 핵심 기능 3가지 및 전공 도메인**: 가장 먼저 구현할 핵심 기능(예: 수식·필기·번역·퀴즈·자료 관리)과 해당 전공 지침(`majors/`) 적용 여부를 확인한다.
+3. **3단계 — 주 사용 기기 및 배포·저장 방식**: PC/태블릿(S-Pen·터치)/모바일 여부와 데이터 저장 방식(로컬 브라우저 저장소 / Google Drive 등 클라우드 연동)을 확인한 뒤, 개발 계획(3~5줄 요약)을 제시하고 승인을 받아 구현을 시작한다.
+
+---
+
 ### 0.5 📝 요구사항 정교화 및 승인 선행 원칙 (Spec-First Workflow)
 사용자가 대략적인 기능 아이디어나 수정 요청(예: "모눈종이 배경 추가해 줘", "내보내기 기능 만들어 줘")을 입력할 경우, **절대 곧바로 소스 코드(`src/`)를 작성하거나 수정하지 않는다.** 반드시 아래 3단계를 순서대로 수행한다.
 
@@ -62,8 +70,13 @@
 | 작업 상황 / 구현 기능 | 참조할 지침 파일 경로 |
 | :--- | :--- |
 | 한글 IME 입력기 깨짐, 폰트·인코딩(`CP949`) 처리 | `vibe-context/rules/korean-web-safety.md` |
+| API 키 보안, OAuth 최소 권한 및 WebView 차단 대응 | `vibe-context/rules/byok-security-and-oauth.md` |
+| 태블릿 터치·가상 키보드·모달 포커스 이탈 방어 | `vibe-context/rules/tablet-webview-safety.md` |
 | S-Pen·태블릿 필기 이중 캔버스, 팜 리젝션 | `vibe-context/patterns/stylus-dual-canvas.md` |
 | 카드 없는 BYOK 무료 API 키 검증 및 3-Tier 폴백 | `vibe-context/patterns/llm-byok-tutor.md` |
+| Google Drive 로컬 우선 동기화 및 PWA OAuth 연동 | `vibe-context/patterns/google_drive_pwa_oauth.md` |
+| 오프라인 하이브리드 검색·문서 연결 및 로컬 동기화 | `vibe-context/patterns/offline-search-and-local-sync.md` |
+| 리치 에디터 + PDF 다중 페이지 레이아웃 및 통합 Undo/Redo | `vibe-context/patterns/pdf-page-layout-and-editor.md` |
 | 브라우저 내 PPTX / PDF 파일 생성 및 내보내기 | `vibe-context/patterns/pptx-client-export.md` |
 | 수식(KaTeX) 렌더링, 좌표계 $1:1$ 비율, 점근선 처리 | `vibe-context/majors/math-edu.md` |
 | 외국어 루비 태그(`<ruby>`) 인라인 발음·번역 표기 | `vibe-context/majors/lang-edu.md` |

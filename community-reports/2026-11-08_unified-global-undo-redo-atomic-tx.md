@@ -15,8 +15,8 @@ date: 2026-11-08
 2. **초기 마운트 및 빈 입력 오염**: TipTap 초기화 트랜잭션이 히스토리에 포착되거나, 인라인 텍스트 입력 시작 시점에 미리 히스토리가 푸시되어 빈 입력 취소 후에도 Undo 스택이 남았다.
 
 ## [해결 패턴]
-1. **단일 `CompositeHistoryManager` + `raw*` 원자적 스냅샷**: 페이지 삭제 등 복합 작업에서는 하위 스토어의 히스토리 기록 없는 `rawRemove`, `rawTranslate`, `rawAdd` 메서드를 호출하고, `{ targetPage, deletedStrokes, deletedTextObjects, shiftStrokeIds, shiftY, templateAttrs }` 전체 스냅샷을 **단 1개의 `HistoryCommand`**로 묶어 1회 Undo로 완벽 복원되게 했다.
-2. **완료 시점 기록 & 초기 클린 강제**: 인라인 텍스트는 의미 있는 내용 입력 완료 시점에만 `recordTextAdd`를 1회 푸시하고 빈 입력은 `recordHistory: false`로 무음 폐기하며, 세션 마운트 직후 `this.history.clear()`를 호출해 초기 `canUndo: false`를 보장했다.
+1. **통합 히스토리 매니저 + `raw*` 원자적 스냅샷**: 페이지 삭제 등 복합 작업에서는 하위 스토어의 히스토리 기록 없는 내부(`raw*`) 메서드를 호출하고, 삭제·이동 대상 전체 스냅샷을 **단 1개의 복합 커맨드**로 묶어 1회 Undo로 완벽 복원되게 했다.
+2. **완료 시점 기록 & 초기 클린 강제**: 인라인 텍스트는 의미 있는 내용 입력 완료 시점에만 히스토리를 1회 푸시하고 빈 입력은 `recordHistory: false`로 무음 폐기하며, 세션 마운트 직후 히스토리를 초기화(`history.clear()`)해 초기 `canUndo: false`를 보장했다.
 
 ## [에이전트 방어 규칙 제안]
 - 여러 스토어를 동시에 변경하는 복합 액션은 절대 하위 스토어의 일반 메서드를 연쇄 호출하지 말고 `raw*` API + 단일 `HistoryCommand` 스냅샷으로 원자화한다. (참조: `patterns/pdf-page-layout-and-editor.md`)
