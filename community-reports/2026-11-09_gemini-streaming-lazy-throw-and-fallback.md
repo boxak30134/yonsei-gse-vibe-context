@@ -34,3 +34,16 @@ date: 2026-11-09
   - `connecting`/`retrying`/`fallback`/`streaming`/`done`/`error`/`cancelled` 7대 상태 한 줄 배너와 `[취소]`(`AbortController`), `[다시 시도]`, 응답 모델 뱃지, `maskApiKey` 보안 로깅을 연동했다.
   - 대화 상태를 컴포넌트 로컬 `useState`에서 Zustand `persist` 스토어로 격리하고 언마운트 시 자동 `abort()`를 제거해, 패널을 닫거나 새로고침해도 대화가 유지되며 API 전송 시에는 최근 4턴(`slice(-4)`) 슬라이딩 윈도우만 전송하도록 했다.
 
+---
+
+### [추가 사례] 2026-11-20 (교육공학 / 공통)
+- **변형 상황**: `probeStreamFirstChunk`를 적용했음에도 간헐적으로 1분 이상 응답이 멈추거나 `[취소]` 버튼과 전체 타임아웃이 작동하지 않고, 타임아웃 종료 시 `"사용자에 의해 요청이 취소되었습니다"`로 오인 표시되었다.
+- **원인**:
+  1. `@google/genai` SDK의 `HttpRetryOptions.attempts` 기본값이 `5`(최대 60초 지연)여서 `429`/`503` 발생 시 SDK 내부 5회 재시도와 앱 외부 재시도 루프가 곱해져 단일 모델에서 1분 이상 블로킹되었다.
+  2. `ai.models.generateContentStream()` 자체가 첫 HTTP 응답 헤더 수신까지 내부 `fetch()`를 `await`하므로, 반환 이후 `iterator.next()`에만 타임아웃을 걸고 `config.abortSignal`을 전달하지 않으면 헤더 대기 구간에서 타임아웃·취소가 무력화되었다.
+  3. 전체 예산 `AbortController` 타임아웃이 사용자 취소(`AbortError`)와 구분되지 않았고, 필기/이미지가 없는 텍스트·도형 작업에도 매번 캔버스 이미지를 전송해 지연이 가중되었다.
+- **해결**:
+  1. `httpOptions: { retryOptions: { attempts: 1 }, timeout: FIRST_CHUNK_TIMEOUT_MS }`로 SDK 내부 중복 재시도를 끄고 앱 폴백 루프가 즉시 제어하게 했다.
+  2. `await ai.models.generateContentStream(...)` 호출과 첫 `iterator.next()`를 하나의 `withTimeout`으로 묶고, 시도별 `attemptController.signal`을 `config.abortSignal`에 전달해 타임아웃 시 하부 `fetch()`를 즉시 강제 종료한 뒤 다음 폴백 모델로 전환했다(성공 모델은 `lastWorkingGeminiModel`로 캐싱).
+  3. `budgetTimedOut` 플래그로 전체 시간 초과와 사용자 취소를 분리하고, 시각 요소(필기 획·이미지)가 있을 때만 경량 스냅샷(`scale: 0.5, quality: 0.65`)을 전송하도록 최적화했다.
+

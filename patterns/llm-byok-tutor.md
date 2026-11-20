@@ -30,21 +30,41 @@ updated: 2026-11-13
 - `@google/genai` SDK(브라우저에서는 반드시 `@google/genai/web` 사용)의 `generateContentStream()`은 호출 시점에 HTTP 요청을 보내지 않고 `AsyncIterable` 객체만 즉시 반환한다.
 - 실제 `503 Server Unavailable` 또는 `404 Not Found`는 이후 `for await (const chunk of stream)`의 **첫 번째 `next()` 호출 시점**에 발생한다. 따라서 `generateContentStream()`만 `try-catch`로 감싸면 모델 폴백 루프가 완전히 무력화된다.
 
-### 2.2 해결 패턴: 첫 청크 조기 프로빙 (`probeStreamFirstChunk`) + 3단계 타임아웃
+### 2.2 해결 패턴: SDK 재시도 비활성화 + 연결·첫 청크 통합 프로빙 (`openAndProbeGeminiStream`)
 ```ts
-const FIRST_CHUNK_TIMEOUT_MS = 12_000;   // 첫 청크(thought 포함) 도착 제한
-const CHUNK_GAP_TIMEOUT_MS = 20_000;     // 스트리밍 중 청크 간 무응답 제한
-const TOTAL_REQUEST_BUDGET_MS = 90_000;  // 전체 재시도·폴백 합산 상한
+const FIRST_CHUNK_TIMEOUT_MS = 9_000;    // 연결(헤더) + 첫 청크 도착 제한
+const CHUNK_GAP_TIMEOUT_MS = 12_000;     // 스트리밍 중 청크 간 무응답 제한
+const TOTAL_REQUEST_BUDGET_MS = 45_000;  // 전체 재시도·폴백 합산 상한
 
-async function probeStreamFirstChunk(stream, signal) {
-  const it = stream[Symbol.asyncIterator]();
-  const first = await withTimeout(it.next(), FIRST_CHUNK_TIMEOUT_MS, signal, 'first-chunk');
-  if (first.done) throw new EmptyStreamError();
-  return { first: first.value, rest: it };
+// SDK 내부 5회 자동 재시도(최대 60초 지연)를 끄고 앱 폴백 루프가 직접 제어
+const ai = new GoogleGenAI({
+  apiKey,
+  httpOptions: { retryOptions: { attempts: 1 }, timeout: FIRST_CHUNK_TIMEOUT_MS },
+});
+
+async function openAndProbeGeminiStream(openStream, parentSignal, attemptController) {
+  try {
+    return await withTimeout(
+      (async () => {
+        const stream = await openStream(); // config.abortSignal: attemptController.signal 전달 필수
+        const it = stream[Symbol.asyncIterator]();
+        const first = await it.next();
+        if (first.done) throw new EmptyStreamError();
+        return { first: first.value, rest: it };
+      })(),
+      FIRST_CHUNK_TIMEOUT_MS,
+      parentSignal,
+      'first-chunk',
+    );
+  } catch (err) {
+    attemptController.abort(); // 타임아웃 시 대기 중인 fetch() 즉시 종료
+    throw err;
+  }
 }
 ```
 - **규칙 1**: 첫 청크의 모든 part가 `thought === true`(thinking 토큰)여도 연결 성공으로 판정한다. (단, 노트 앱 짧은 질의는 `thinkingConfig`를 최소 레벨로 낮춰 첫 본문 지연을 줄이고, `thinkingConfig` 미지원 400 시 필드 제거 후 같은 모델로 1회만 재요청한다.)
 - **규칙 2**: 본문 일부가 이미 UI에 스트리밍된 뒤 `CHUNK_GAP_TIMEOUT_MS`로 끊긴 경우 **절대 재시도하지 않는다**(내용 중복 출력 방지). 기수신 본문을 보존하고 안내 문구만 덧붙인다.
+- **규칙 3**: `generateContentStream()`과 첫 `next()`를 반드시 하나의 `withTimeout` 안에 묶고 `config.abortSignal` 및 `httpOptions: { retryOptions: { attempts: 1 } }`를 함께 전달해, 헤더 대기 지연이 SDK 내부 5회 재시도와 겹쳐 1분 이상 멈추지 않도록 한다. 또한 `budgetTimedOut` 플래그로 전체 예산 타임아웃과 사용자 취소(`AbortError`)를 구분한다.
 
 ### 2.3 에러 분류 및 지수 백오프 + Jitter
 SDK 에러 형태(`{ status }`, `{ error: { code } }`, 메시지 내 상태 코드)를 통합 파싱(`extractHttpStatus`)해 다음과 같이 분기한다.
